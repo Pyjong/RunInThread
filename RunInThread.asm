@@ -28,7 +28,7 @@ struc Context_int
     .pFnAddr:     resq 1
     .hEvent:      resq 1
     .pParamAddr:  resq 1
-    .szParams:    resq 1
+    .nParams:     resq 1
     .size:
 endstruc
 
@@ -97,7 +97,7 @@ RunInThread_int:
     ;   locVar_rdx                  8 bytes
     ;   locVar_r8                   8 bytes
     ;   locVar_r9                   8 bytes
-    ;   stack params for Fn         szParams - register params size
+    ;   stack params for Fn         nParams - register params size
     ;   param r9                    8 bytes
     ;   param r8                    8 bytes
     ;   param rdx                   8 bytes
@@ -111,7 +111,7 @@ RunInThread_int:
     
     ; Set up
     mov r8,  rcx                            ; r8  = ctx
-    mov rcx, [r8 + Context_int.szParams]    ; rcx = ctx->szParams
+    mov rcx, [r8 + Context_int.nParams]    ; rcx = ctx->nParams
     mov rdx, [r8 + Context_int.pParamAddr]  ; rdx = ctx->pParamAddr
     mov r9,  [r8 + Context_int.pFnAddr]     ; r9  = ctx->pFnAddr
     mov [locVar_FnAddr], r9                 ; locVar = pFnAddr
@@ -122,67 +122,64 @@ RunInThread_int:
     ; These are going to be copied into registers right before jumping
     
     ; copy rcx to local variable
-    mov  rcx, [rdx]
-    add  rdx, 8
     lea  r9,  [locVar_rcx]
-    call CopyParam
-    sub [r8 + Context_int.szParams], rcx 
+    mov  rax, [rdx]
+    mov [r9],  rax
+    dec qword [r8 + Context_int.nParams] 
     jz .cya
     
     ; copy rdx to local variable
     add  rdx, 8
-    mov  rcx, [rdx]
-    add  rdx, 8
+    
     lea  r9,  [locVar_rdx]
-    call CopyParam
-    sub [r8 + Context_int.szParams], rcx
+    mov  rax, [rdx]
+    mov [r9],  rax
+    dec qword [r8 + Context_int.nParams]
     jz .cya
     
     ; copy r8 to local variable
     add  rdx, 8
-    mov  rcx, [rdx]
-    add  rdx, 8
+    
     lea  r9,  [locVar_r8]
-    call CopyParam
-    sub [r8 + Context_int.szParams], rcx
+    mov  rax, [rdx]
+    mov [r9],  rax
+    dec qword [r8 + Context_int.nParams]
     jz .cya
     
     ; copy r9 to local variable
     add  rdx, 8
-    mov  rcx, [rdx]
-    add  rdx, 8
+    
     lea  r9,  [locVar_r9]
-    call CopyParam
-    sub [r8 + Context_int.szParams], rcx
+    mov  rax, [rdx]
+    mov [r9],  rax
+    dec qword [r8 + Context_int.nParams]
     jz .cya
     
     ;
     ; Now copy the rest of the parameters from __VA_ARGS__ in RunInThread
     ; to stack.
     ;
-    mov     rcx, [r8 + Context_int.szParams]
+    mov     rcx, [r8 + Context_int.nParams]
+    sal     rcx, 3
     sub     rsp, rcx                            ; now we know how many bytes do the stack paramters need
-    
-    mov     rdx, [r8 + Context_int.pParamAddr]
-    add     rdx, rcx
-    dec     rdx
-    ; Fn may require more parameters than SetEvent
-    ; for that reason
+    ;lea     rsp, [rsp - rcx*8]
+    sar     rcx, 3
     
 .L1:
-    mov     al, [rdx]
-    mov     [rsp + rcx + 7], al
-    dec     rdx
+    add     rdx, 8
+    mov     rax, [rdx]
+    mov     [rsp + rcx*8], rax
     loop    RunInThread_int.L1
     
-.cya:    
+.cya:
     ; Call SetEvent to signalize copying has been done
     mov  rcx, [r8 + Context_int.hEvent] ; Context.hEvent
     call SetEvent                       ;
     
     ; set regs, we don't care about the garbage on stack
     ; valid behaviour for fastcalls
-    mov rbx, [r8 + Context_int.szParams]
+    mov rcx, [r8 + Context_int.nParams]
+    lea rbx, [rcx*8]
     
     mov rcx, [locVar_rcx + rbx]
     mov rdx, [locVar_rdx + rbx]
@@ -204,7 +201,7 @@ RunInThread_cleanup:
     
 _RunInThread:
 ; ------------------------------------------------------------------------------
-; HANDLE __fastcall _RunInThread(DWORD WINAPI (*fn)(PVOID), DWORD szParams, ...)
+; HANDLE __fastcall _RunInThread(DWORD WINAPI (*fn)(PVOID), DWORD nParams, ...)
 ;
 ;   Description:
 ;
@@ -251,9 +248,9 @@ _RunInThread:
     mov     rax, [retaddr_ptr + 08h]
     mov     [rcx + Context_int.pFnAddr], rax
     
-    ; Context_int.szParams = szParams;
+    ; Context_int.nParams = nParams;
     mov     rax, [retaddr_ptr + 10h]
-    mov     [rcx + Context_int.szParams], rax
+    mov     [rcx + Context_int.nParams], rax
     
     ; Context_int.pParamAddr = ...;
     lea     rax, [retaddr_ptr + 28h]
