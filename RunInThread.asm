@@ -83,8 +83,9 @@ RunInThread_int:
     %define locVar_r9     (rsp + 28h + 20h - 28h)
     %define stack_params  (rsp + 20h - 08h)
     
-    mov [rsp + 8], rbx    ; consider this an optimization
-                          ; rbx is going to be used as variable paramters size
+    mov [rsp + 10h], rbx    ; consider this an optimization
+                            ; rbx is going to be used as variable paramters size
+    ;mov [rsp + 08h], rcx    ; save pointer to context
     
     sub rsp, 28h + 20h    ; 38h locVars + 20h params + ?? params
     
@@ -168,17 +169,18 @@ RunInThread_int:
 .L1:
     add     rdx, 8
     mov     rax, [rdx]
-    mov     [rsp + rcx*8], rax
+    mov    [rsp + rcx*8 + 18h], rax
     loop    RunInThread_int.L1
     
 .cya:
     ; Call SetEvent to signalize copying has been done
+    mov  rbx, r8                        ; save rbx
     mov  rcx, [r8 + Context_int.hEvent] ; Context.hEvent
     call SetEvent                       ;
     
     ; set regs, we don't care about the garbage on stack
     ; valid behaviour for fastcalls
-    mov rcx, [r8 + Context_int.nParams]
+    mov rcx, [rbx + Context_int.nParams]
     lea rbx, [rcx*8]
     
     mov rcx, [locVar_rcx + rbx]
@@ -187,13 +189,13 @@ RunInThread_int:
     mov r9,  [locVar_r9  + rbx]
     
     ; Jump to requested fn
-    call     [locVar_FnAddr]
+    call     [locVar_FnAddr + rbx]
 
 RunInThread_cleanup:
 
     add rsp, 28h + 20h
     add rsp, rbx
-    mov rbx, [rsp + 08h]  ; restore original rbx
+    mov rbx, [rsp + 10h]  ; restore original rbx
     
     ret
     

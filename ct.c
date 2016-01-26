@@ -8,6 +8,17 @@ void printfn(UINT i, UINT j, UINT k)
     printf("haha %d %d %d\n", i, j , k);
 }
 
+void printfn2(UINT i, UINT j, UINT k, UCHAR* str)
+{
+    //printf("haha %d: %d\n", i, GetThreadId(GetCurrentThread()));
+    printf("haha %d %d %d %s\n", i, j , k, str);
+}
+
+void lprintfn(UINT i, UINT j, UINT k, UINT l, UINT m, ULONGLONG n, ULONGLONG o)
+{
+    printf("serious %d %d %d %d %d %lld %lld\n", i, j , k, l , m, n, o);
+}
+
 int main()
 {
     ULONGLONG i = 5;
@@ -15,9 +26,9 @@ int main()
     
     //printf("%d\n", sizeof(i, (ULONGLONG)4000, (ULONGLONG)2));
     
-    RunInThread(printfn, (ULONGLONG)7, (ULONGLONG)99, (ULONGLONG)100);
-    RunInThread(printfn, i, (ULONGLONG)4000, (ULONGLONG)2);
-    RunInThread(printfn, h, (ULONGLONG)20, (ULONGLONG)20);
+    RunInThread(printfn, 7, 99, 100);
+    RunInThread(printfn2, i, 4000, 2, (const char*)"hello hello");
+    RunInThread(lprintfn, h, 20, 20, 20, 30, 30LL, 30LL);
     
     /*printf("size = %d\n", size(i));
     printf("size = %d\n", size(h));
